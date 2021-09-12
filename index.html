@@ -1,0 +1,276 @@
+<!doctype html>
+<html>
+
+<head>
+    <title>js snake</title>
+    <meta charset='utf-8' />
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            height: 100vh;
+
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            background-color: #242324;
+        }
+
+        #bg {
+            padding: 5px 5px 2px;
+
+            background-color: #747474;
+
+        }
+
+        #canvas {
+            outline: none;
+        }
+
+        #best_t,
+        #score_t {
+            font-family: Arial, Helvetica, sans-serif;
+            font-weight: bold;
+            margin-bottom: 3px;
+
+            color: #313131;
+        }
+        #best,
+        #score {
+            color: chartreuse;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="bg">
+        <div style="display: flex; justify-content: space-between;">
+            <p id="score_t">Длина: <span id="score">3</span></p>
+            <p id="best_t">Рекорд: <span id="best">0</span></p>
+        </div>
+        <canvas id='canvas' tabindex='1'></canvas>
+    </div>
+    <script>
+        var score = document.getElementById('score');
+        var best = document.getElementById('best');
+
+        // Dimensions
+
+        var field_width = 600;
+        var field_height = 480;
+
+        var cell_size = 40;
+
+        // Variables
+
+        var current_direction = 'right';
+        var game_logic_timer;
+        var logic_delay = 500;
+        var logic_delay_min = 50;
+        var logic_delay_max = 500;
+
+        // Colors
+
+        var field_fill_color = '#4f4f4f';
+        var field_stroke_color = '#464646';
+
+        var food_fill_color = '#fc4d4d';
+        var food_stroke_color = '#c51e1e';
+
+        var snake_head_fill_color = '#48ff00';
+        var snake_head_stroke_color = '#37c400';
+        var snake_fill_color = '#37c400';
+        var snake_stroke_color = '#48ff00';
+
+        // Canvas context
+
+        var canvas = document.getElementById('canvas');
+        canvas.width = field_width;
+        canvas.height = field_height;
+
+        var ctx = canvas.getContext('2d');
+
+        // Functions
+
+        function draw_field() {
+            ctx.fillStyle = field_fill_color;
+            ctx.fillRect(0, 0, field_width, field_height);
+
+            ctx.fillStyle = field_stroke_color;
+            for (let i = 0; i < field_width; i += cell_size) {
+                ctx.fillRect(i, 0, 1, field_height);
+                ctx.fillRect(i + cell_size - 1, 0, 1, field_height);
+            }
+            for (let i = 0; i < field_height; i += cell_size) {
+                ctx.fillRect(0, i, field_width, 1);
+                ctx.fillRect(0, i + cell_size - 1, field_width, 1);
+            }
+        }
+
+        function draw_object(x, y, fill_color, stroke_color = '#ffffff00') {
+            ctx.fillStyle = fill_color;
+            ctx.strokeStyle = stroke_color;
+
+            ctx.fillRect(x * cell_size, y * cell_size, cell_size, cell_size);
+            ctx.strokeRect(x * cell_size + 1, y * cell_size + 1, cell_size - 2, cell_size - 2);
+        }
+
+        function draw_snake_head(x, y) {
+            draw_object(x, y, snake_head_fill_color, snake_head_stroke_color);
+        }
+
+        function draw_snake_body_part(x, y) {
+            draw_object(x, y, snake_fill_color, snake_stroke_color);
+        }
+
+        function draw_food(x, y) {
+            draw_object(x, y, food_fill_color, food_stroke_color);
+        }
+
+        function generate_food() {
+            food.x = Math.floor(Math.random() * (field_width / cell_size));
+            food.y = Math.floor(Math.random() * (field_height / cell_size));
+        }
+
+        function reset_snake() {
+            snake = {
+                body_parts: [
+                    { x: 4, y: 2 },
+                    { x: 3, y: 2 },
+                    { x: 2, y: 2 }
+                ]
+            }
+
+            current_direction = 'right';
+
+            score.innerHTML = '3';
+        }
+
+        var snake = {
+            body_parts: [
+                {x: 4, y: 2},
+                {x: 3, y: 2},
+                {x: 2, y: 2}
+            ]
+        }
+
+        var food = {
+            x: 5,
+            y: 10
+        }
+
+        function game_logic() {
+            let hmove = 0;
+            let vmove = 0;
+
+            switch (current_direction) {
+                case 'left':
+                    hmove = -1;
+                    break;
+                case 'right':
+                    hmove = 1;
+                    break;
+                case 'up':
+                    vmove = -1;
+                    break;
+                case 'down':
+                    vmove = 1;
+                    break;
+            }
+
+            draw_field();
+
+            snake.body_parts.unshift({x: snake.body_parts[0].x + hmove, y: snake.body_parts[0].y + vmove});
+            var deleted_part = snake.body_parts.pop();
+
+            for (let i = 0; i < snake.body_parts.length; i++) {
+                if (snake.body_parts[i].x < 0) {
+                    snake.body_parts[i].x = field_width / cell_size - 1;
+                }
+                if (snake.body_parts[i].x > field_width / cell_size - 1) {
+                    snake.body_parts[i].x = 0;
+                }
+                if (snake.body_parts[i].y < 0) {
+                    snake.body_parts[i].y = field_height / cell_size - 1;
+                }
+                if (snake.body_parts[i].y > field_height / cell_size - 1) {
+                    snake.body_parts[i].y = 0;
+                }
+
+                if (i == 0) {
+                    draw_snake_head(snake.body_parts[i].x, snake.body_parts[i].y);
+                } else {
+                    draw_snake_body_part(snake.body_parts[i].x, snake.body_parts[i].y);
+                }
+            }
+
+            if (snake.body_parts[0].x === food.x && snake.body_parts[0].y === food.y) {
+                generate_food();
+                snake.body_parts.push(deleted_part);
+                draw_snake_body_part(deleted_part.x, deleted_part.y);
+
+                score.innerHTML = snake.body_parts.length;
+
+                logic_delay -= 10;
+                if (logic_delay < logic_delay_min) {
+                    logic_delay = logic_delay_min;
+                }
+            }
+
+            for (let i = 1; i < snake.body_parts.length; i++) {
+                if (snake.body_parts[0].x === snake.body_parts[i].x &&
+                    snake.body_parts[0].y === snake.body_parts[i].y) {
+                        if (best.innerHTML < score.innerHTML) {
+                            best.innerHTML = score.innerHTML;
+                        }
+
+                        reset_snake();
+                        generate_food();
+                        logic_delay = logic_delay_max;
+                    }
+            }
+
+            draw_food(food.x, food.y);
+
+            setTimeout(game_logic, logic_delay);
+        }
+
+        // Key binding
+
+        canvas.focus();
+        canvas.onkeydown = (e) => {
+            switch (e.code) {
+                case 'KeyA':
+                case 'ArrowLeft':
+                    current_direction = 'left';
+                    break;
+                case 'KeyD':
+                case 'ArrowRight':
+                    current_direction = 'right';
+                    break;
+                case 'KeyW':
+                case 'ArrowUp':
+                    current_direction = 'up';
+                    break;
+                case 'KeyS':
+                case 'ArrowDown':
+                    current_direction = 'down';
+                    break;
+            }
+        }
+
+        // ------------------
+
+        reset_snake();
+        generate_food();
+        setTimeout(game_logic, logic_delay);
+    </script>
+</body>
+
+</html>
